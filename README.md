@@ -1,0 +1,2 @@
+# Stickle_GWAS
+GWAS
