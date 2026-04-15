@@ -1,0 +1,312 @@
+##After BAM all bash
+#PLINK v1.90b6.21 64-bit (19 Oct 2020)          www.cog-genomics.org/plink/1.9/ 2005-2020 Shaun Purcell, Christopher Chang   GNU General Public License v3
+
+
+##creating one large g.vcf.gz file
+
+for bam in *.bam; do
+    sample=$(basename "$bam" .bam)
+    gatk HaplotypeCaller \
+        -R stickleback.fasta \
+        -I "$bam" \
+        -O "${sample}.g.vcf.gz" \
+        -ERC GVCF
+Done
+
+Step 2 : combine gvcfs
+gatk GenomicsDBImport \
+    $(for f in *.g.vcf.gz; do echo "--variant $f"; done) \
+    --genomicsdb-workspace-path my_database \
+    --reader-threads 4 \
+    -L intervals.list \
+    --sample-name-map sample_map.txt
+
+Step 3 joint genotyping
+gatk GenotypeGVCFs \
+    -R stickleback.fasta \
+    -V gendb://my_database \
+    -O final_joint_genotyped.vcf.gz
+
+
+or could be this
+
+nano run_haplotypecaller.sh
+
+#!/bin/bash # Define paths REF="/mnt/d/04.1_bams_combined/04_bams_files/stickleback_v5_assembl.fasta" BAM_DIR="/mnt/d/04.1_bams_combined/04_bams_files" OUT_DIR="/mnt/d/04.1_bams_combined/04_bams_files/gvcfs"
+ # Create output directory if it doesn't exist mkdir -p "$OUT_DIR"
+ # Check if there are BAM files to process shopt -s nullglob 
+bam_files=("$BAM_DIR"/*_RG_sorted_fixmate_position_markdup.bam) 
+if [ ${#bam_files[@]} -eq 0 ]; then 
+echo "No BAM files matched in $BAM_DIR"
+ exit 1 
+fi
+ # Loop over each BAM file
+ for bam in "${bam_files[@]}" do
+ sample_id=$(basename "$bam" 
+_RG_sorted_fixmate_position_markdup.bam)
+ echo "Processing $sample_id" 
+echo "Running HaplotypeCaller on $bam..." 
+gatk HaplotypeCaller \ 
+-R "$REF" \
+ -I "$bam" \ 
+-O "$OUT_DIR/${sample_id}.g.vcf.gz" \
+ -ERC GVCF
+ echo "Finished $sample_id" 
+done
+
+chmod +x run_haplotypecaller.sh
+
+./run_haplotypecaller.sh
+
+###Dr.Brewer helped with this step so we will have to find exact code
+
+##Convert to only biallelic sites for PLINK
+
+bcftools norm -m -any combined_allstickles.vcf.gz     -Oz -o out_bial_stickles.vcf.gz --threads 4 && bcftools index -t out_bial_stickles.vcf.gz --threads 4
+
+#QC this out_bial_stickles.vcf.gz file
+#Variant count:
+bcftools view -H out_bial_stickles.vcf.gz | wc -l
+#output 27,600,957       Original had 21,989,975  
+
+#Missingness:
+bcftools +fill-tags out_bial_stickles.vcf.gz --threads 8 -Oz -o - -- -t AF,F_MISSING \
+  | bcftools view --threads 8 -i 'AF[0]>=0.05 && F_MISSING<=0.10' -Oz -o filtered__miss_stickles.vcf.gz
+
+
+
+#QC summary
+#Lines   total/split/joined/realigned/skipped:   21989975/3881132/0/0/0
+#input VCF had ~21.99 million variant lines, and bcftools norm split ~3.88 million multiallelic records into separate biallelic ones.
+#Summary missingness: Variants: 8,582,212 Samples: 142 Mean MAF: 0.330253 Mean missingness: 0.019895
+
+#More QC... some redundant
+# Keep only biallelic SNPs
+bcftools view -m2 -M2 -v snps filtered_stickles.vcf.gz \
+  -Oz -o step1_biallelic_snps.vcf.gz --threads 4
+bcftools index -t step1_biallelic_snps.vcf.gz
+
+# Remove samples with >5% missing genotypes
+plink --vcf step1_biallelic_snps.vcf.gz --missing --out sample_missingness
+awk '$6 > 0.05 {print $1, $2}' sample_missingness.imiss > remove_samples.txt
+if [ -s remove_samples.txt ]; then
+  plink --vcf step1_biallelic_snps.vcf.gz \
+    --remove remove_samples.txt \
+    --recode vcf bgz --out step2_samples_filtered
+else
+  cp step1_biallelic_snps.vcf.gz step2_samples_filtered.vcf.gz
+  bcftools index -t step2_samples_filtered.vcf.gz
+fi
+
+# Remove variants failing Hardy-Weinberg equilibrium (HWE)
+plink --vcf step2_samples_filtered.vcf.gz --hardy --out hwe_check
+awk '$9 < 1e-6 {print $1, $2}' hwe_check.hwe > remove_hwe.txt
+if [ -s remove_hwe.txt ]; then
+  plink --vcf step2_samples_filtered.vcf.gz \
+    --exclude remove_hwe.txt \
+    --recode vcf bgz --out step3_hwe_filtered
+else
+  cp step2_samples_filtered.vcf.gz step3_hwe_filtered.vcf.gz
+  bcftools index -t step3_hwe_filtered.vcf.gz
+fi
+
+# Create final PLINK binary files for GWAS
+plink --vcf step3_hwe_filtered.vcf.gz \
+  --make-bed --out final_plink_dataset
+
+**gapping here
+#Samples that have been removed S143 S46 S48 S50 S53: These samples have a higher than 5% missing genotypes 
+
+samples_to_remove.txt
+#WHAT CODE REMOVED S143, S46, S50, S53????? .txt file??
+
+#Now ready to continue with less_stickles_nomiss.vcf.gz for GWAS analyses less_stickles_nomiss.vcf.gz
+
+
+#Code for bed bam fam files: plink --vcf ANAandLML.vcf.gz \
+  --make-bed --out ANAandLMLdataset
+
+#Code for bed bam fam files: plink --vcf LML.vcf.gz \
+  --make-bed --out LMLdataset
+
+#LMLdataset_pca.eigenvec.eigenvec : sample IDs abd first 20 principle components 
+#LMLdataset_pca.eigenval: variance explained by each PC; hwhich was used to determine PCs
+
+#Covariates: ANAandLML include covariates 1-4 81.8% LML Include covaraites: 1-7 84.5%
+
+
+#Code for gwas_ANAandLML:
+plink --bfile ANAandLMLdataset \
+      --pheno ANAandLMLpheno.txt \
+      --covar LMLandANAdataset_pca.eigenvec \
+      --covar-number 1-4 \
+      --linear \
+      --allow-extra-chr \
+      --allow-no-sex \
+      --out gwas_ANAandLML
+
+
+#Code for GWAS_LML
+plink --bfile LMLdataset \
+      --pheno LMLpheno.txt \
+      --covar LMLdataset_pca.eigenvec \
+      --covar-number 1-7 \
+      --linear \
+      --allow-extra-chr \
+      --allow-no-sex \
+      --out gwas_LML
+
+
+#***switch from 07_vcf_files/chloe_vcfs to plink_files
+Now final_plink_dataset**** in plink_files ???
+
+
+
+
+
+
+
+
+
+Relatedness 
+
+#create necessary PLINK binary files for GWAS
+plink --vcf step3_hwe_filtered.vcf.gz \
+  --make-bed --out final_plink_dataset
+
+##Now have final_plink_dataset
+#Quick QC
+
+#Check Missingness final_plink_dataset
+plink --bfile final_plink_dataset --missing --out qc_samples_missing
+
+# QC Output: 
+#output: 1031954 MB RAM detected; reserving 515977 MB for main workspace.
+#8582212 variants loaded from .bim file.
+#137 people (0 males, 0 females, 137 ambiguous) loaded from .fam.
+#Ambiguous sex IDs written to qc_samples_missing.nosex .
+#Using 1 thread (no multithreaded calculations invoked).
+#Before main variant filters, 137 founders and 0 nonfounders present.
+#Calculating allele frequencies... done.
+#Warning: Nonmissing nonmale Y chromosome genotype(s) present; many commands
+#treat these as missing.
+#Total genotyping rate is 0.983948.
+#--missing: Sample missing data report written to qc_samples_missing.imiss, and
+#variant-based missing data report written to qc_samples_missing.lmiss.
+
+plink --bfile final_plink_dataset       --update-map update_ids.map 2 7       --make-bed       --out final_plink_dataset_with_ids --allow-extra-chr
+#***not sure what ".map 2  7" is about? its above and below? must be columns 2 and 7 likely start and end
+
+#Logging to final_plink_dataset_with_ids.log.
+Options in effect:
+  --allow-extra-chr
+  --bfile final_plink_dataset
+  --make-bed
+  --out final_plink_dataset_with_ids
+  --update-map update_ids.map 2 7
+
+
+1031954 MB RAM detected; reserving 515977 MB for main workspace.
+8582212 variants loaded from .bim file.
+137 people (0 males, 137 females) loaded from .fam.
+
+#Fixed to have SNP ID's Final_plink_dataset_with_ids
+#QC again
+# Counts
+wc -l ${IN}.bim   # variants
+wc -l ${IN}.fam   # samples
+
+# Any missing/blank SNP IDs?
+awk '{print $2}' ${IN}.bim | grep -c '^\.$'
+
+# Duplicated SNP IDs?
+awk '{print $2}' ${IN}.bim | sort | uniq -d | head
+awk '{print $2}' ${IN}.bim | sort | uniq -d | wc -l
+
+# Duplicated genomic positions (same chr:pos regardless of allele)
+awk '{print $1":"$4}' ${IN}.bim | sort | uniq -d | head
+awk '{print $1":"$4}' ${IN}.bim | sort | uniq -d | wc -l
+
+output: output for 1: 8582212 final_plink_dataset_with_ids.bim 137 final_plink_dataset_with_ids.fam 0 0 23:10002918 23:10004060 23:10007582 23:1000831 23:10014703 23:10015543 23:10017365 23:10017367 23:10017389 23:10020018 519801
+
+next step:
+# Per-sample and per-variant missingness
+plink --bfile final_plink_dataset_with_ids --missing --out qc_missing --allow-extra-chr
+
+# Top samples by missingness
+(head -n1 qc_missing.imiss; sort -k6,6nr qc_missing.imiss | head)
+# Count samples >5% missing (adjust 0.05 if you like)
+awk '$6>0.05' qc_missing.imiss | wc -l
+awk '$6>0.05{print $1,$2,$6}' qc_missing.imiss | head
+
+# Top variants by missingness
+(head -n1 qc_missing.lmiss; sort -k6,6nr qc_missing.lmiss | head)
+# Count variants >5% missing
+awk '$6>0.05' qc_missing.lmiss | wc -l
+
+# MAF distribution
+plink --bfile final_plink_dataset_with_ids --freq --out qc_maf --allow-extra-chr
+(head -n1 qc_maf.frq; head qc_maf.frq)
+awk 'NR>1&&$5<0.01' qc_maf.frq | wc -l   # count MAF<1%
+awk 'NR>1&&$5<0.05' qc_maf.frq | wc -l   # count MAF<5%
+(head -n1 qc_maf.frq; sort -k5,5g qc_maf.frq | head)
+
+Next step relatedness: # KING kinship table (pairwise relatedness). Creates qc_king.kin0
+plink --bfile $IN --make-king-table --out qc_king --allow-extra-chr
+
+# Pairs with kinship > 0.177 (~1st-degree)
+awk '$9 > 0.177' qc_king.kin0 | head
+awk '$9 > 0.177' qc_king.kin0 | wc -l
+
+# Pairs with kinship > 0.0884 (~2nd-degree)
+awk '$9 > 0.0884' qc_king.kin0 | head
+awk '$9 > 0.0884' qc_king.kin0 | wc -l
+
+#should be useable because still same as ANAandLML im pretty sure. yes bc used same less_stickles_nomiss.vcf.gz
+
+
+#LMLdataset_pca.eigenvec.eigenvec : sample IDs abd first 20 principle components 
+#LMLdataset_pca.eigenval: variance explained by each PC; hwhich was used to determine PCs
+
+#Covariates: ANAandLML include covariates 1-4 81.8% LML Include covaraites: 1-6 78.8% 1-7 84.5%
+
+
+#Code for bed bam fam files: plink --vcf ANAandLML.vcf.gz \
+  --make-bed --out ANAandLMLdataset
+
+#Code for bed bam fam files: plink --vcf LML.vcf.gz \
+  --make-bed --out LMLdataset
+
+#Code for gwas_ANAandLML:
+plink --bfile ANAandLMLdataset \
+      --pheno ANAandLMLpheno.txt \
+      --covar LMLandANAdataset_pca.eigenvec \
+      --covar-number 1-4 \
+      --linear \
+      --allow-extra-chr \
+      --allow-no-sex \
+      --out gwas_ANAandLML
+
+
+#Code for GWAS_LML
+plink --bfile LMLdataset \
+      --pheno LMLpheno.txt \
+      --covar LMLdataset_pca.eigenvec \
+      --covar-number 1-7 \
+      --linear \
+      --allow-extra-chr \
+      --allow-no-sex \
+      --out gwas_LML
+
+
+
+
+
+
+
+
+
+
+
+
+
