@@ -1,6 +1,5 @@
-##After BAM all bash
+##After BAM (bash)
 #PLINK v1.90b6.21 64-bit (19 Oct 2020)          www.cog-genomics.org/plink/1.9/ 2005-2020 Shaun Purcell, Christopher Chang   GNU General Public License v3
-
 
 ##creating one large g.vcf.gz file
 
@@ -28,7 +27,7 @@ gatk GenotypeGVCFs \
     -O final_joint_genotyped.vcf.gz
 
 
-or could be this
+or could be this???
 
 nano run_haplotypecaller.sh
 
@@ -121,9 +120,8 @@ plink --vcf step3_hwe_filtered.vcf.gz \
 
 
 
-I think i used step3_hwe_filtered.vcf.gz and removed samples_to_remove.txt to get less_stickles_no_miss.vcf.gz
-will have to reverse engeneere see if get same result. doesnt make sense exactly but keep looking.... try to find in notes where less_stickles_nomiss is.... retrace again
-#WHAT CODE REMOVED S143, S46, S50, S53????? .txt file??
+#I think i used step3_hwe_filtered.vcf.gz and removed samples_to_remove.txt to get less_stickles_no_miss.vcf.gz
+#will have to recreate this file to see if get same result. doesnt make sense exactly but keep looking.... try to find in notes where less_stickles_nomiss is.... retrace again
 
 #Now ready to continue with less_stickles_nomiss.vcf.gz for GWAS analyses less_stickles_nomiss.vcf.gz
 
@@ -136,10 +134,12 @@ will have to reverse engeneere see if get same result. doesnt make sense exactly
 bcftools view -S ^ANAandLMLremove.txt less_stickles_nomiss.vcf.gz -Oz -o ANAandLML.vcf.gz --force-samples
 
 
-#Code for bed bam fam files: plink --vcf ANAandLML.vcf.gz \
+#Code for bed bam fam files: 
+plink --vcf ANAandLML.vcf.gz \
   --make-bed --out ANAandLMLdataset
 
-#Code for bed bam fam files: plink --vcf LML.vcf.gz \
+#Code for bed bam fam files:
+plink --vcf LML.vcf.gz \
   --make-bed --out LMLdataset
 
 #LMLdataset_pca.eigenvec.eigenvec : sample IDs abd first 20 principle components 
@@ -278,9 +278,7 @@ awk '$9 > 0.0884' qc_king.kin0 | wc -l
 #should be useable because still same as ANAandLML im pretty sure. yes bc used same less_stickles_nomiss.vcf.gz
 
 
-#split tree
-
-
+#splits tree........ need more info
 
 nohup python ~/vcf2phylip.py -i less_stickles_nomiss.vcf.gz -p --output-folder 4splitstree --output-prefix less-stickles-nomiss
 python ~/vcf2phylip.py -i less_stickles_nomiss.vcf.gz -p --output-folder 4splitstree --output-prefix less-stickles-nomiss
