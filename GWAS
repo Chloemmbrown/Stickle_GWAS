@@ -117,10 +117,23 @@ plink --vcf step3_hwe_filtered.vcf.gz \
 **gapping here
 #Samples that have been removed S143 S46 S48 S50 S53: These samples have a higher than 5% missing genotypes 
 
-samples_to_remove.txt
+
+
+
+
+I think i used step3_hwe_filtered.vcf.gz and removed samples_to_remove.txt to get less_stickles_no_miss.vcf.gz
+will have to reverse engeneere see if get same result. doesnt make sense exactly but keep looking.... try to find in notes where less_stickles_nomiss is.... retrace again
 #WHAT CODE REMOVED S143, S46, S50, S53????? .txt file??
 
 #Now ready to continue with less_stickles_nomiss.vcf.gz for GWAS analyses less_stickles_nomiss.vcf.gz
+
+
+
+
+
+
+
+bcftools view -S ^ANAandLMLremove.txt less_stickles_nomiss.vcf.gz -Oz -o ANAandLML.vcf.gz --force-samples
 
 
 #Code for bed bam fam files: plink --vcf ANAandLML.vcf.gz \
@@ -265,40 +278,13 @@ awk '$9 > 0.0884' qc_king.kin0 | wc -l
 #should be useable because still same as ANAandLML im pretty sure. yes bc used same less_stickles_nomiss.vcf.gz
 
 
-#LMLdataset_pca.eigenvec.eigenvec : sample IDs abd first 20 principle components 
-#LMLdataset_pca.eigenval: variance explained by each PC; hwhich was used to determine PCs
-
-#Covariates: ANAandLML include covariates 1-4 81.8% LML Include covaraites: 1-6 78.8% 1-7 84.5%
+#split tree
 
 
-#Code for bed bam fam files: plink --vcf ANAandLML.vcf.gz \
-  --make-bed --out ANAandLMLdataset
 
-#Code for bed bam fam files: plink --vcf LML.vcf.gz \
-  --make-bed --out LMLdataset
-
-#Code for gwas_ANAandLML:
-plink --bfile ANAandLMLdataset \
-      --pheno ANAandLMLpheno.txt \
-      --covar LMLandANAdataset_pca.eigenvec \
-      --covar-number 1-4 \
-      --linear \
-      --allow-extra-chr \
-      --allow-no-sex \
-      --out gwas_ANAandLML
-
-
-#Code for GWAS_LML
-plink --bfile LMLdataset \
-      --pheno LMLpheno.txt \
-      --covar LMLdataset_pca.eigenvec \
-      --covar-number 1-7 \
-      --linear \
-      --allow-extra-chr \
-      --allow-no-sex \
-      --out gwas_LML
-
-
+nohup python ~/vcf2phylip.py -i less_stickles_nomiss.vcf.gz -p --output-folder 4splitstree --output-prefix less-stickles-nomiss
+python ~/vcf2phylip.py -i less_stickles_nomiss.vcf.gz -p --output-folder 4splitstree --output-prefix less-stickles-nomiss
+python ~/vcf2phylip.py -i less_stickles_nomiss.vcf.gz --output-folder 4splitstree --output-prefix less-stickles-nomiss
 
 
 
