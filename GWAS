@@ -59,11 +59,21 @@ chmod +x run_haplotypecaller.sh
 
 ###Dr.Brewer helped with this step so we will have to find exact code
 
+#Large combined gvcf : sticklebacks_ALLGVCFS_gatkCombined.gvcf.gz
+#now convert gvcf into standard vcf:
+gatk GenotypeGVCFs \
+  -R reference.fasta \
+  -V combined.g.vcf.gz \
+  -O cohort.vcf.gz
+
+N#ew file named: combined_allstickles.vcf.gz
+
+
 ##Convert to only biallelic sites for PLINK
 
 bcftools norm -m -any combined_allstickles.vcf.gz     -Oz -o out_bial_stickles.vcf.gz --threads 4 && bcftools index -t out_bial_stickles.vcf.gz --threads 4
 
-#QC this out_bial_stickles.vcf.gz file
+#QC out_bial_stickles.vcf.gz
 #Variant count:
 bcftools view -H out_bial_stickles.vcf.gz | wc -l
 #output 27,600,957       Original had 21,989,975  
@@ -71,10 +81,13 @@ bcftools view -H out_bial_stickles.vcf.gz | wc -l
 #Missingness:
 bcftools +fill-tags out_bial_stickles.vcf.gz --threads 8 -Oz -o - -- -t AF,F_MISSING \
   | bcftools view --threads 8 -i 'AF[0]>=0.05 && F_MISSING<=0.10' -Oz -o filtered__miss_stickles.vcf.gz
+# Create index (tabix) **do next
+bcftools index -t --threads 8 filt_miss_stickles.vcf.gz
 
 
+##****************filtered_miss_stickles.vcf.gz here.....may be linked to stickles_nomiss
 
-#QC summary
+#QC summary filt_miss_stickles?
 #Lines   total/split/joined/realigned/skipped:   21989975/3881132/0/0/0
 #input VCF had ~21.99 million variant lines, and bcftools norm split ~3.88 million multiallelic records into separate biallelic ones.
 #Summary missingness: Variants: 8,582,212 Samples: 142 Mean MAF: 0.330253 Mean missingness: 0.019895
@@ -132,7 +145,7 @@ plink --vcf step3_hwe_filtered.vcf.gz \
 
 
 bcftools view -S ^ANAandLMLremove.txt less_stickles_nomiss.vcf.gz -Oz -o ANAandLML.vcf.gz --force-samples
-
+#same as above but LMLremove.txt
 
 #Code for bed bam fam files: 
 plink --vcf ANAandLML.vcf.gz \
