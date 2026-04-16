@@ -187,10 +187,40 @@ plink --bfile LMLdataset \
 Now final_plink_dataset**** in plink_files ???
 
 
+#Annotations 
+#.csv and .bed files were made in R
 
+#using reference genome with annotated genes to annotate genes/snps
+bedtools intersect -a FDR_1p_LML_chrX_fix2.bed -b genes_only.gff3 -wa -wb > LML_top1_gene_overlap_2.txt
 
+##File with only gene names
+grep -o 'Name=[^;]*' LML_top1_gene_overlap_2.txt | sed 's/Name=//' | sort -u > LML_top1_gene_names_2.txt
 
+#These steps were repeated for each .txt file containing gene names
 
+#Overlap of gene names between sweep and GWAS
+
+#sorted and unique values to check sweep and snp overlap
+sort -u LML_top1_gene_names_2.txt > GWAS_LML_top1_genes_sorted_unique.txt
+GWAS_LML_top1_genes_sorted_unique.txt
+RAiSD_sweep_gene_names_sorted_unique.txt
+
+comm -12 RAiSD_sweep_gene_names_sorted_unique.txt GWAS_LML_top1_genes_sorted_unique.txt > GWAS_RAISD_overlap.txt
+
+#Code for overlap between sweep, gwas, and pigment genes
+cat EnsembleID_Pigmentcol1.txt EnsembleID_Pigmentcol2.txt > Pigments_McKinnon2022.txt
+sort -u Pigments_McKinnon2022.txt > Pigments_McKinnon2022_sorted.txt
+sed -i 's/\r$//' Pigments_McKinnon2022_sorted.txt
+sed -i 's/^[ \t]*//;s/[ \t]*$//' Pigments_McKinnon2022_sorted.txt
+tr -d '\t' < Pigments_McKinnon2022_sorted.txt > tmp && mv tmp Pigments_McKinnon2022_sorted.txt
+tr '[:upper:]' '[:lower:]' < Pigments_McKinnon2022_sorted.txt > tmp && mv tmp Pigments_McKinnon2022_sorted.txt
+
+sort -u GWAS_RAISD_overlap.txt > GWAS_RAISD_overlap_sorted.txt
+
+sed 's/\r$//' GWAS_RAISD_overlap_sorted.txt | sed 's/^[ \t]*//;s/[ \t]*$//' | tr '[:upper:]' '[:lower:]' | sort -u > cleanedGR.txt
+mv cleanedGR.txt GWAS_RAISD_overlap_sorted.txt
+
+comm -12 Pigments_McKinnon2022_sorted.txt GWAS_RAISD_overlap_sorted.txt > overlapping_Pigments_GWAS_RAiSD.txt
 
 
 
