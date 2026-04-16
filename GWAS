@@ -130,8 +130,9 @@ plink --vcf step3_hwe_filtered.vcf.gz \
 #Samples that have been removed S143 S46 S48 S50 S53: These samples have a higher than 5% missing genotypes 
 
 
-
-
+bcftools view -e 'F_MISSING > 0' step3_hwe_filtered.vcf.gz -Oz -o less_stickles_nomiss.vcf.gz
+#*****or leaning towards is being filtered__miss_stickles
+bcftools view -e 'F_MISSING > 0' filtered__miss_stickles.vcf.gz -Oz -o less_stickles_nomiss.vcf.gz
 
 #I think i used step3_hwe_filtered.vcf.gz and removed samples_to_remove.txt to get less_stickles_no_miss.vcf.gz
 #will have to recreate this file to see if get same result. doesnt make sense exactly but keep looking.... try to find in notes where less_stickles_nomiss is.... retrace again
