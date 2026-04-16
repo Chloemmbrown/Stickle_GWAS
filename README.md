@@ -1,2 +1,3 @@
-# Stickle_GWAS
+# Stickles_Red_F
 GWAS
+Sweeps
