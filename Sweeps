@@ -1,0 +1,37 @@
+#RAiSD Sweeps
+
+#Need original code from RAiSD_Report.angsd_vcf_run
+
+
+
+
+
+#created a bed file of top 1% of sweeps +/- 10kb window
+bedtools intersect RAiSD_Sweep_regions.bed -b genes_from_gff3.bed -wa -wb > RAiSD_sweep_gene_overlap.txt
+
+#changed bed to only contain positive #'s
+awk '{ if ($2 < 0) $2=0; priny $0 }' RAiSD_Sweep_regions.bed > RAiSD_Sweep_regions_fix.bed
+
+##tab deliminated and only kept rows that had positive coordinates and 4 lines, removed malformed lines
+awk 'NF==4 && $2>=0 && $3>=0 {OFS="\t"; print $1,$2,$3,$4}' \
+RAiSD_Sweep_regions_fix.bed > RAiSD_Sweep_regions_clean.bed
+
+bedtools intersect \
+-a RAiSD_Sweep_regions_clean.bed \
+-b genes_from_gff3.bed \
+-wa -wb > RAiSD_sweep_gene_overlap.txt
+
+#unique gene overlap names:
+cut -f8 RAiSD_sweep_gene_overlap.txt | sort | uniq > RAiSD_sweep_overlap_gene_names.txt
+
+#gene frequency: 
+cut -f8 RAiSD_sweep_gene_overlap.txt | sort | uniq -c | sort -nr > RAiSD_gene_frequency.txt
+
+
+
+
+
+
+
+
+
