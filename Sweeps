@@ -1,5 +1,7 @@
 #RAiSD Sweeps
 
+-f -n angsd_vcf_run -I ../angsd_runs/angsdput_sticklebackRedThroat_allsamples.vcf -P
+
 #Need original code from RAiSD_Report.angsd_vcf_run
 
 
