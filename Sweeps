@@ -4,6 +4,38 @@
 
 #Need original code from RAiSD_Report.angsd_vcf_run
 
+#New Sweep with LML.vcf
+
+#making vcf compatible with RAiSD format
+bcftools view -v snps LML.vcf | \
+bcftools annotate -x INFO,^FORMAT/GT -Oz -o LML.raisd.ready.vcf.gz
+
+#index
+bcftools index LML.raisd.ready.vcf.gz
+
+#create unphased format because its more compatible (optional) to ensure proper run
+bcftools view LML.raisd.ready.vcf.gz | \
+sed 's/|/\//g' | \
+bgzip -c > LML.raisd.unphased.vcf.gz
+
+#index
+bcftools index LML.raisd.unphased.vcf.gz
+
+bcftools view LML.raisd.unphased.vcf.gz -Oz -o LML.raisd.final.vcf.gz
+bcftools index -f LML.raisd.final.vcf.gz
+
+#uncompress
+bcftools view LML.raisd.unphased.vcf.gz -Ov -o LML.raisd.final.vcf
+
+#RAiSD run         window 50kb
+RAiSD -f -n LML_vcf_run -I LML.raisd.final.vcf -w 50 -P
+
+
+
+
+
+
+
 
 
 
