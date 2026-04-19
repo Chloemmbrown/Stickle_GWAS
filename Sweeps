@@ -77,6 +77,32 @@ awk '{print $1"\t"$2"\t"$3}' sweeps_with_genes_expanded2.txt | sort | uniq -c | 
 #genes_most_often.txt
 awk '{print $7}' sweeps_with_genes_expanded2.txt | sort | uniq -c | sort -nr > genes_most_often.txt
 
+#hot spot maps     #need fixing
+ bedtools makewindows -b sweep_regions_expanded2.bed -w 50000 > genome_windows_50kb.bed
+bedtools coverage -a genome_windows_50kb.bed -b sweep_regions_expanded2.bed > sweep_density_50kb.bed
+
+for chr in $(cut -f1 sweep_regions_expanded2.bed | sort | uniq); do
+    awk -v c="$chr" '$1==c' sweep_density_50kb.bed > hotspot_${chr}.bed
+done
+
+
+for chr in $(cut -f1 sweep_density_50kb.bed | sort | uniq); do
+    awk -v c="$chr" '$1==c{print $4}' sweep_density_50kb.bed | sort -n > tmp.txt
+
+    threshold=$(awk 'NR==int(0.99*NR){val=$1} END{print val}' tmp.txt)
+    awk -v c="$chr" -v t="$threshold" '$1==c && $4>=t' sweep_density_50kb.bed >> chr_hotspots_top1.bed
+done
+
+threshold=$(awk '{print $4}' sweep_density_50kb.bed | sort -n | awk 'NR==int(0.99*NR){val=$1} END{print val}')
+awk -v t="$threshold" '$4 >= t' sweep_density_50kb.bed > genome_hotspots_top1_diff_way.bed
+
+
+
+
+
+
+
+
 
 
 
