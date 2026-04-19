@@ -13,7 +13,8 @@ bcftools annotate -x INFO,^FORMAT/GT -Oz -o LML.raisd.ready.vcf.gz
 #index
 bcftools index LML.raisd.ready.vcf.gz
 
-#create unphased format because its more compatible (optional) to ensure proper run
+#create unphased format because its more compatible (op
+tional) to ensure proper run
 bcftools view LML.raisd.ready.vcf.gz | \
 sed 's/|/\//g' | \
 bgzip -c > LML.raisd.unphased.vcf.gz
@@ -30,41 +31,41 @@ bcftools view LML.raisd.unphased.vcf.gz -Ov -o LML.raisd.final.vcf
 #RAiSD run         window 50kb
 RAiSD -f -n LML_vcf_run -I LML.raisd.final.vcf -w 50 -P
 
+#merge the individual chr reports into one and keeping chr name in columns
+ for f in RAiSD_Report.LML_vcf_run.chr*; do
+    chr=$(echo "$f" | sed 's/RAiSD_Report.LML_vcf_run.//')
+    awk -v c="$chr" 'BEGIN{OFS="\t"} {print c, $1, $7}' "$f"
+done > RAiSD_GENOME_FIXED.txt
 
+#extracting top 1% peaks
+awk '{print $3}' RAiSD_GENOME_FIXED.txt | sort -g > mu_values_fixed.txt
 
+#sort genome-wide highest mu values at bottom
+ sort -k3,3g RAiSD_GENOME_FIXED.txt > RAiSD_GENOME_FIXED.sorted.txt
 
+#top 1% extract 
+threshold=$(awk '{print $3}' RAiSD_GENOME_FIXED.txt | sort -g | awk 'NR==int(0.99*NR){val=$1} END{print val}')
 
+#convert to bed
+awk -v t="$threshold" '$3 >= t' RAiSD_GENOME_FIXED.txt > RAiSD_top1_mu_snptail.txt
 
+awk 'BEGIN{OFS="\t"} {print $1, $2, $2+1, $3}' RAiSD_top1_mu_snptail.txt > RAiSD_top1_snptail_sweeps.bed
 
+awk 'BEGIN{OFS="\t"} {print $1, $2-5000, $2+5000, $3}' RAiSD_top_hits.txt > expanded.bed
+#bed with -/+ 5000KB
+awk 'BEGIN{OFS="\t"} {print $1, $2-5000, $2+5000, $3}' RAiSD_top1_mu_snptail.txt > top1_mu_snptail_expanded.bed
 
+#bed fixing negatives at start of chr
+ awk 'BEGIN{OFS="\t"} {start=$2-5000; if(start<0) start=0; print $1, start, $2+5000, $3}' RAiSD_top1_mu_snptail.txt > RAiSD_Fixneg_mu_snptail_expanded.bed
 
+#sort nec for bedtools
+sort -k1,1 -k2,2n RAiSD_Fixneg_mu_snptail_expanded.bed > RAiSD_fixneg_expanded.sorted.bed
 
+#merge
+bedtools merge -d 2000 -i RAiSD_fixneg_expanded.sorted.bed > sweep_regions_expanded2.bed
 
-#created a bed file of top 1% of sweeps +/- 10kb window
-bedtools intersect RAiSD_Sweep_regions.bed -b genes_from_gff3.bed -wa -wb > RAiSD_sweep_gene_overlap.txt
-
-#changed bed to only contain positive #'s
-awk '{ if ($2 < 0) $2=0; priny $0 }' RAiSD_Sweep_regions.bed > RAiSD_Sweep_regions_fix.bed
-
-##tab deliminated and only kept rows that had positive coordinates and 4 lines, removed malformed lines
-awk 'NF==4 && $2>=0 && $3>=0 {OFS="\t"; print $1,$2,$3,$4}' \
-RAiSD_Sweep_regions_fix.bed > RAiSD_Sweep_regions_clean.bed
-
-bedtools intersect \
--a RAiSD_Sweep_regions_clean.bed \
--b genes_from_gff3.bed \
--wa -wb > RAiSD_sweep_gene_overlap.txt
-
-#unique gene overlap names:
-cut -f8 RAiSD_sweep_gene_overlap.txt | sort | uniq > RAiSD_sweep_overlap_gene_names.txt
-
-#gene frequency: 
-cut -f8 RAiSD_sweep_gene_overlap.txt | sort | uniq -c | sort -nr > RAiSD_gene_frequency.txt
-
-
-
-
-
+#genes
+bedtools intersect -a sweep_regions_expanded2.bed -b genes_from_gff3.bed -wa -wb > sweeps_with_genes_expanded2.txt
 
 
 
