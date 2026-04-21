@@ -67,11 +67,19 @@ bedtools merge -d 2000 -i RAiSD_fixneg_expanded.sorted.bed > sweep_regions_expan
 #genes
 bedtools intersect -a sweep_regions_expanded2.bed -b genes_from_gff3.bed -wa -wb > sweeps_with_genes_expanded2.txt
 
-#txt files analyses
+#txt files analyses candidate genes under selection ************
+cut -f7 sweeps_with_genes_expanded2.txt | sort | uniq > sweep_genes_RAiSD_LML.txt
+
+
+
+
 #gene_hotspots.txt
 awk '{print $7}' sweeps_with_genes_expanded2.txt | sort | uniq -c | sort -nr > gene_hotspots.txt
+#How often genes appears 
+cut -f7 sweeps_with_genes_expanded2.txt | sort | uniq -c | sort -nr > sweep_gene_counts.txt
+
 #genecounts_per_sweep_region.txt
-awk '{print $1":"$2":"$3}' sweeps_with_genes_expanded2.txt | sort | uniq -c | sort -nr > genecounts_per_sweep_region.txt
+awk ? | sort | uniq -c | sort -nr > genecounts_per_sweep_region.txt
 #mostcommon_sweep_regions.txt
 awk '{print $1"\t"$2"\t"$3}' sweeps_with_genes_expanded2.txt | sort | uniq -c | sort -nr > mostcommon_sweep_regions.txt
 
