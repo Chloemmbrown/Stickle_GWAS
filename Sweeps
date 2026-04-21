@@ -74,8 +74,6 @@ awk '{print $7}' sweeps_with_genes_expanded2.txt | sort | uniq -c | sort -nr > g
 awk '{print $1":"$2":"$3}' sweeps_with_genes_expanded2.txt | sort | uniq -c | sort -nr > genecounts_per_sweep_region.txt
 #mostcommon_sweep_regions.txt
 awk '{print $1"\t"$2"\t"$3}' sweeps_with_genes_expanded2.txt | sort | uniq -c | sort -nr > mostcommon_sweep_regions.txt
-#genes_most_often.txt
-awk '{print $7}' sweeps_with_genes_expanded2.txt | sort | uniq -c | sort -nr > genes_most_often.txt
 
 #hot spot maps     #need fixing
  bedtools makewindows -b sweep_regions_expanded2.bed -w 50000 > genome_windows_50kb.bed
