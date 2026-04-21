@@ -94,14 +94,206 @@ done
 threshold=$(awk '{print $4}' sweep_density_50kb.bed | sort -n | awk 'NR==int(0.99*NR){val=$1} END{print val}')
 awk -v t="$threshold" '$4 >= t' sweep_density_50kb.bed > genome_hotspots_top1_diff_way.bed
 
+awk 'BEGIN{OFS="\t"} {print $1, $2, $2+1, $3}' RAiSD_GENOME_FIXED.txt > RAiSD_GENOME_FIXED.bed
 
+bedtools intersect \
+-a genes_from_gff3.bed \
+-b RAiSD_GENOME_FIXED.bed \
+-wa -wb > gene_mu_overlap.txt
 
+#head gene_mu_overlap.txt
+chrI    4018    19513   DGKD    chrI    12759   12760   4.542e+00
+chrI    4018    19513   DGKD    chrI    13438   13439   4.388e+00
+chrI    4018    19513   DGKD    chrI    13663   13664   4.451e+00
+chrI    4018    19513   DGKD    chrI    13922   13923   4.478e+00
+chrI    4018    19513   DGKD    chrI    14485   14486   4.322e+00
+chrI    4018    19513   DGKD    chrI    14595   14596   4.354e+00
+chrI    4018    19513   DGKD    chrI    15060   15061   4.351e+00
+chrI    4018    19513   DGKD    chrI    15998   15999   4.055e+00
+chrI    4018    19513   DGKD    chrI    16155   16156   4.031e+00
+chrI    4018    19513   DGKD    chrI    16359   16360   3.961e+00
 
+ awk '{
+    gene=$4
+    mu=$8
 
+    count[gene]++
+    sum[gene]+=mu
 
+    if(mu > max[gene]) max[gene]=mu
+}
+END {
+    for(g in count){
+        mean = sum[g]/count[g]
+        print g, max[g], mean, count[g]
+    }
+}' gene_mu_overlap.txt | sort -k2,2gr > gene_mu_stats.txt
 
+ awk '{print $2, $1}' gene_hotspots.txt | sort -k1,1 > gene_hotspots.sorted.txt
 
+ sort -k1,1 gene_mu_stats.txt > gene_mu_stats.sorted.txt
 
+join -1 1 -2 1 \
+gene_mu_stats.sorted.txt \
+gene_hotspots.sorted.txt \
+> gene_combined_scores.txt
+
+# head gene_combined_scores.txt
+aak1a 9.772e+00 5.32997 40 1
+abcc3 2.505e+01 16.7895 50 1
+abhd15a 1.352e+01 10.6394 27 1
+abhd17c 5.326e+00 1.30653 97 1
+ABI3BP 7.967e+00 1.72194 186 1
+ablim2 6.934e+00 4.21859 78 1
+ABLIM3 1.426e+01 6.30051 148 1
+abracl 9.529e+00 8.46938 13 1
+abtb2b 1.904e+01 11.4801 44 1
+acaa2 1.031e+01 8.903 12 1
+
+join -a 1 -a 2 -e 0 -o auto \
+gene_mu_stats.sorted.txt \
+gene_hotspots.sorted.txt \
+> gene_combined_scores.txt
+
+head gene_combined_scores.txt
+a1cf 1.828e+00 1.59613 31 0
+A3GALT2 5.477e-01 0.493229 17 0
+aaas 7.565e-01 0.612514 28 0
+aacs 9.404e-01 0.351078 193 0
+aadac 3.692e-01 0.196163 54 0
+aadacl4 7.465e-01 0.626706 18 0
+aadat 4.671e-01 0.220663 72 0
+aagab 5.686e-01 0.392514 22 0
+aak1a 9.772e+00 5.32997 40 1
+aak1b 3.049e-11 1.97257e-11 53 0
+
+ awk '{
+    gene=$1
+    max=$2
+    mean=$3
+    snps=$4
+    sweeps=$5
+
+    score = (max*0.5) + (mean*0.2) + (snps*0.1) + (sweeps*0.2)
+
+    print gene, score, max, mean, snps, sweeps
+}' gene_combined_scores.txt | sort -k2,2gr > FINAL_gene_ranking_sweeps.txt
+
+head FINAL_gene_ranking_sweeps.txt
+ENSGACG00000015690 2907.58 1.663e+01 0.306239 28986 3
+ENSGACG00000018044 2727.67 1.663e+01 0.282173 27191 1
+ENSGACG00000000561_alt_to_chr_Un 700.419 3.163e+01 1.52068 6835 4
+CNTNAP2 316.136 4.207e+00 0.662054 3139 0
+ENSGACG00000020030 311.203 1.472e+01 1.21701 3026 5
+vma21 261.359 4.385e+00 1.33468 2589 0
+nrxn3b 237.569 1.637e+00 0.25065 2367 0
+ctnna2 201.776 5.085e+01 2.75631 1752 3
+CSMD1 171.095 4.263e+00 0.81877 1688 0
+grm8a 165.144 9.542e+00 0.863325 1600 1
+
+$ awk '{
+    gene=$1
+    max=$2
+    mean=$3
+    snps=$4
+    sweeps=$5
+
+    snps_log = log(snps+1)
+
+    score = (max*0.6) + (mean*0.2) + (snps_log*0.05) + (sweeps*0.15)
+
+    print gene, score, max, mean, snps, sweeps
+}' gene_combined_scores.txt | sort -k2,2gr > FINAL_gene_ranking_FIXED.txt
+
+ awk '!/chrUn|alt/' FINAL_gene_ranking_FIXED.txt > FINAL_gene_ranking_filtered_sweep.txt
+
+head FINAL_gene_ranking_filtered_sweep.txt
+si:ch211-13k12.2 73.5763 1.119e+02 30.497 41 1
+p4hb 71.7131 1.062e+02 38.3652 29 1
+rptor 47.7384 7.769e+01 3.25599 641 1
+psmd7 46.9453 5.876e+01 57.35 3 1
+swap70b 45.3057 5.818e+01 50.639 10 1
+ncapd2 41.8961 6.341e+01 17.4685 61 1
+ENSGACG00000012114 40.7704 5.472e+01 38.2823 13 1
+ENSGACG00000006307 40.7605 6.562e+01 4.54684 722 1
+erc1a 34.5089 4.453e+01 37.605 10 1
+slco3a1 33.7671 5.213e+01 10.6196 73 1
+
+head RAiSD_GENOME_FIXED.txt
+chrI    12759   4.542e+00
+chrI    13438   4.388e+00
+chrI    13663   4.451e+00
+chrI    13922   4.478e+00
+chrI    14485   4.322e+00
+chrI    14595   4.354e+00
+chrI    15060   4.351e+00
+chrI    15998   4.055e+00
+chrI    16155   4.031e+00
+chrI    16359   3.961e+00
+
+head -20 FINAL_gene_ranking_filtered_sweep.txt > top_genes.txt
+head -20 FINAL_gene_ranking_filtered_sweep.txt > top_genes_sweeps_lml.txt
+
+head top_genes_sweeps_lml.txt
+si:ch211-13k12.2 73.5763 1.119e+02 30.497 41 1
+p4hb 71.7131 1.062e+02 38.3652 29 1
+rptor 47.7384 7.769e+01 3.25599 641 1
+psmd7 46.9453 5.876e+01 57.35 3 1
+swap70b 45.3057 5.818e+01 50.639 10 1
+ncapd2 41.8961 6.341e+01 17.4685 61 1
+ENSGACG00000012114 40.7704 5.472e+01 38.2823 13 1
+ENSGACG00000006307 40.7605 6.562e+01 4.54684 722 1
+erc1a 34.5089 4.453e+01 37.605 10 1
+slco3a1 33.7671 5.213e+01 10.6196 73 1
+
+ cut -d' ' -f1 sweeps_with_genes_expanded2.txt | sort | uniq -c | sort -nr | head
+      1 chrXXI  9328640 9349826 chrXXI  9321931 9370327 tpk1
+      1 chrXXI  9301404 9319000 chrXXI  9313674 9320592 ENSGACG00000002448
+      1 chrXXI  9301404 9319000 chrXXI  9308834 9312546 si:dkey-73n8.3
+      1 chrXXI  9301404 9319000 chrXXI  9303103 9306421 ENSGACG00000002443
+      1 chrXXI  9087352 9103208 chrXXI  9045949 9099691 zfhx4
+      1 chrXXI  7864641 7888063 chrXXI  7884919 7889490 fen1
+      1 chrXXI  6831240 6850259 chrXXI  6831988 6837573 ENSGACG00000002106
+      1 chrXXI  6748023 6770748 chrXXI  6727196 6790600 ENSGACG00000002060
+      1 chrXXI  6287137 6299900 chrXXI  6275927 6302006 arhgap29a
+      1 chrXXI  6208647 6222877 chrXXI  6208610 6213370 garem
+
+ cut -f1 sweeps_with_genes_expanded2.txt | sort | uniq -c | sort -nr | head
+    233 chrVII
+    202 chrIV
+    137 chrXIX
+     95 chrI
+     94 chrXII
+     90 chrXX
+     64 chrXVII
+     62 chrVIII
+     56 chrXI
+     49 chrII
+
+ grep -Ff <(head -20 FINAL_gene_ranking_filtered_sweep.txt | awk '{print $1}') sweeps_with_genes_expanded2.txt
+chrIV   7942953 7975942 chrIV   7950549 8013267 atp8a1
+chrIV   7993687 8028366 chrIV   7950549 8013267 atp8a1
+chrIX   11843220        11901285        chrIX   11874063        11967098      rptor
+chrIX   11980990        12043492        chrIX   11989524        11999108      p4hb
+chrIX   12889909        12902172        chrIX   12876404        13078398      ctnna2
+chrIX   12906026        12923975        chrIX   12876404        13078398      ctnna2
+chrIX   13001187        13064274        chrIX   12876404        13078398      ctnna2
+chrVII  17959226        18090329        chrVII  18023524        18027339      rom1a
+chrVII  17959226        18090329        chrVII  18029758        18034291      frmd8
+chrXIX  8318214 8368873 chrXIX  8342374 8348153 impdh1a
+chrXIX  8318214 8368873 chrXIX  8350909 8352421 ENSGACG00000012580
+chrXIX  8922023 9074971 chrXIX  8948066 8951138 psmd7
+chrXIX  8922023 9074971 chrXIX  8942962 8947353 hprt1l
+chrXIX  8922023 9074971 chrXIX  8955350 8966385 ENSGACG00000012114
+chrXIX  8922023 9074971 chrXIX  9003761 9015170 erc1a
+chrXIX  11688437        11729610        chrXIX  11707364        11727694      si:ch211-13k12.2
+chrXIX  11771508        11797672        chrXIX  11778981        11803031      slco3a1
+chrXIX  13255145        13361755        chrXIX  13293086        13297435      wee1
+chrXIX  13255145        13361755        chrXIX  13299807        13312851      swap70b
+chrXIX  13255145        13361755        chrXIX  13329069        13340276      AMPD3
+chrXVI  4798265 4839683 chrXVI  4804294 4805385 ENSGACG00000002259
+chrXX   7686543 7711071 chrXX   7694270 7708799 ncapd2
+chrXX   13596755        13669569        chrXX   13549903        13661638      ENSGACG00000006307
 
 
 
