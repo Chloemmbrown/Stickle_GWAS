@@ -304,5 +304,9 @@ chrXX   7686543 7711071 chrXX   7694270 7708799 ncapd2
 chrXX   13596755        13669569        chrXX   13549903        13661638      ENSGACG00000006307
 
 
+Overlap between the 2:
+tr '[:lower:]' '[:upper:]' < sweep_genes_RAiSD_LML.txt | sort > sweep_genes_upper.txt
+tr '[:lower:]' '[:upper:]' < GWAS_LML_top1_genes_sorted_unique.txt | sort > gwas_genes_upper.txt
 
+comm -12 sweep_genes_upper.txt gwas_genes_upper.txt > shared_genes_RAiSD_GWAS.txt
 
