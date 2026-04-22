@@ -24,6 +24,117 @@ done > LML_mu_all_positions.txt
 awk 'BEGIN{OFS="\t"} {print $1, $2, $2+1, $3}' \
     LML_mu_all_positions.txt > LML_mu_all_positions.bed
 
+#ID top 1% mu SNPs and define sweep regions
+
+#sort mu values
+sort -k3,3g LML_mu_all_positions.txt > LML_mu_all_positions.sorted.txt
+
+#99% threshold
+threshold=$(awk '{print $3}' LML_mu_all_positions.sorted.txt | \
+            awk 'NR==int(0.99*NR_total){print $1} {NR_total=NR}')
+
+echo "Top 1% μ threshold = $threshold"
+
+#extract top snps
+awk -v t="$threshold" '$3 >= t' LML_mu_all_positions.txt \
+    > LML_mu_top1pct_snps.txt
+
+#expand +/-5KB around top SNP
+awk 'BEGIN{OFS="\t"} {
+    start = $2 - 5000
+    if (start < 0) start = 0
+    end = $2 + 5000
+    print $1, start, end, $3
+}' LML_mu_top1pct_snps.txt \
+> LML_mu_top1pct_expanded.bed
+
+#sort for merging
+sort -k1,1 -k2,2n LML_mu_top1pct_expanded.bed \
+    > LML_mu_top1pct_expanded.sorted.bed
+
+#merge using overlap only
+bedtools merge -i LML_mu_top1pct_expanded.sorted.bed \
+    > LML_sweep_regions.bed
+
+#Intersect sweep regions with genes
+bedtools intersect \
+    -a LML_sweep_regions.bed \
+    -b genes_from_gff3.bed \
+    -wa -wb \
+    > LML_sweep_gene_overlaps.txt
+
+# Unique genes
+cut -f7 LML_sweep_gene_overlaps.txt | sort | uniq \
+    > LML_sweep_genes_unique.txt
+
+# Gene counts
+cut -f7 LML_sweep_gene_overlaps.txt | sort | uniq -c | sort -nr \
+    > LML_sweep_gene_counts.txt
+
+# Gene counts per sweep region
+cut -f1-3 LML_sweep_gene_overlaps.txt | sort | uniq -c | sort -nr \
+    > LML_sweep_region_gene_counts.txt
+
+#Sweep density hotspots
+bedtools makewindows -b LML_sweep_regions.bed -w 50000 \
+    > LML_sweep_windows_50kb.bed
+
+bedtools coverage \
+    -a LML_sweep_windows_50kb.bed \
+    -b LML_sweep_regions.bed \
+    > LML_sweep_density_50kb.txt
+
+# Genome-wide 99th percentile density
+threshold=$(awk '{print $4}' LML_sweep_density_50kb.txt | sort -g | \
+            awk 'NR==int(0.99*NR_total){print $1} {NR_total=NR}')
+
+awk -v t="$threshold" '$4 >= t' LML_sweep_density_50kb.txt \
+    > LML_sweep_density_hotspots_top1pct.bed
+
+cp LML_sweep_density_hotspots_top1pct.bed \
+   LML_sweep_density_hotspots_top1pct.txt
+
+
+# Count sweep regions per chromosome
+cut -f1 LML_sweep_regions.bed | sort | uniq -c | sort -nr \
+    > LML_chromosome_sweep_density.txt
+
+#top 10 genes based on max mu
+LML_mu_all_positions.bed
+genes_from_gff3.bed
+
+bedtools intersect \
+    -a genes_from_gff3.bed \
+    -b LML_mu_all_positions.bed \
+    -wa -wb \
+    > LML_gene_mu_overlap.txt
+
+awk '{
+    gene=$4
+    mu=$8
+    if(mu > max[gene]) max[gene]=mu
+}
+END {
+    for(g in max) print g, max[g]
+}' LML_gene_mu_overlap.txt \
+| sort -k2,2g \
+> LML_gene_max_mu_sorted.txt
+
+tail -10 LML_gene_max_mu_sorted.txt \
+    > LML_top10_genes_by_mu.txt
+
+
+#Overlap sweeps and gwas
+tr '[:lower:]' '[:upper:]' < LML_sweep_genes_unique.txt | sort \
+    > LML_sweep_genes_upper.txt
+
+tr '[:lower:]' '[:upper:]' < GWAS_LML_top1_genes_sorted_unique.txt | sort \
+    > LML_gwas_genes_upper.txt
+
+comm -12 LML_sweep_genes_upper.txt LML_gwas_genes_upper.txt \
+    > LML_shared_genes_sweeps_GWAS.txt
+
+
 
 
 
