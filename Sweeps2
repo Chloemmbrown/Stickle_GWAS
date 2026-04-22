@@ -1,0 +1,30 @@
+#sweeps 2
+
+#prepare vcf for RAiSD no unphasing 
+# Keep only SNPs and GT
+bcftools view -v snps LML.vcf | \
+bcftools annotate -x INFO,^FORMAT/GT -Oz -o LML_snps_GT.vcf.gz
+
+# Index
+bcftools index -f LML_snps_GT.vcf.gz
+
+# Convert to uncompressed VCF for RAiSD
+bcftools view LML_snps_GT.vcf.gz -Ov -o LML_snps_GT.raisd.vcf
+
+#Run RAiSD and collect mu values
+RAiSD -f -n LML_run -I LML_snps_GT.raisd.vcf -w 50 -P
+
+# Combine per-chromosome reports
+for f in RAiSD_Report.LML_run.chr*; do
+    chr=$(echo "$f" | sed 's/RAiSD_Report.LML_run.//')
+    awk -v c="$chr" 'BEGIN{OFS="\t"} {print c, $1, $7}' "$f"
+done > LML_mu_all_positions.txt
+
+# Convert to BED (1 bp)
+awk 'BEGIN{OFS="\t"} {print $1, $2, $2+1, $3}' \
+    LML_mu_all_positions.txt > LML_mu_all_positions.bed
+
+
+
+
+
