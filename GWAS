@@ -322,17 +322,18 @@ awk '$9 > 0.0884' qc_king.kin0 | wc -l
 #should be useable because still same as ANAandLML im pretty sure. yes bc used same less_stickles_nomiss.vcf.gz
 
 #Gene Ontology
+
+bedtools intersect -a GWAS_LML_FDR_ADD_0.056.bed -b genes_only.gff3 -wa -wb > LML_GWAS_FDR_.056_gene_overlap.txt
+grep -o 'Name=[^;]*' LML_GWAS_FDR_.056_gene_overlap.txt | sed 's/Name=//' | sort -u > LML_GWAS_FDR_.056_gene_names.txt
+
+
 #get ensemble Id's into txt file
 awk '{print $NF}' LML_top1_gene_overlap_2.txt \
 | sed 's/.*ID=\([^;]*\);.*/\1/' \
 | sort -u \
 > LML_GWAS_top1_ensembl_ids.txt
 
-#get ensemble Id's into txt file
-awk '{print $NF}' LML_GWAS_FDR_.056_gene_overlap.txt \
-| sed 's/.*ID=\([^;]*\);.*/\1/' \
-| sort -u \
-> LML_GWAS_FDR_.056_ensembl_ids.txt
+
 
 
 
