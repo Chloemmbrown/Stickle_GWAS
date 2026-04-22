@@ -135,7 +135,26 @@ comm -12 LML_sweep_genes_upper.txt LML_gwas_genes_upper.txt \
     > LML_shared_genes_sweeps_GWAS.txt
 
 
+#Gene ontology
+grep -o 'ID=[^;]*' LML_sweep_gene_overlap_gff3.txt \
+| sed 's/ID=//' \
+| sort -u \
+> LML_sweep_gene_ensembl_ids.txt
+
+#extract gene names
+grep -o 'Name=[^;]*' LML_sweep_gene_overlaps.txt \
+| sed 's/Name=//' \
+| sort -u \
+> LML_sweep_gene_names.txt
+
+grep -o 'ID=[^;]*' LML_sweep_gene_overlaps.txt \
+| sed 's/ID=//' \
+| sort -u \
+> LML_sweep_gene_ensembl_ids.txt
 
 
-
-
+#gene ontology on sweeps and gwas overlap
+comm -12 \
+    <(sort LML_sweep_gene_ensembl_ids.txt) \
+    <(sort LML_GWAS_FDR_.056_ensembl_ids.txt) \
+    > LML_shared_ensembl_ids_sweeps_GWAS.txt
