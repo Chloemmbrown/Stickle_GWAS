@@ -158,3 +158,29 @@ comm -12 \
     <(sort LML_sweep_gene_ensembl_ids.txt) \
     <(sort LML_GWAS_FDR_.056_ensembl_ids.txt) \
     > LML_shared_ensembl_ids_sweeps_GWAS.txt
+
+
+#distance from gwas hits to sweep centers
+#compute sweep centers from your merged sweep regions
+awk 'BEGIN{OFS="\t"} {
+    center = int(($2 + $3)/2)
+    print $1, center, center+1
+}' LML_sweep_regions.bed > LML_sweep_centers.bed
+
+#convert GWAS gene list to BED and map them to coordinates
+grep -F -f LML_GWAS_FDR_.056_ensembl_ids.txt genes_from_gff3.bed \
+    > LML_GWAS_genes.bed
+
+#compute distance from each GWAS gene to nearest sweep center
+bedtools closest \
+    -a LML_GWAS_genes.bed \
+    -b LML_sweep_centers.bed \
+    -d \
+    > LML_GWAS_to_sweep_distance.txt
+
+
+
+
+
+
+
