@@ -1,48 +1,134 @@
 Sweeps 3
 
-# 1. Inspect μ distribution (optional but useful)
-cut -f4 RAiSD_intervals_raw.bed | sort -g > RAiSD_mu_values.txt
+#!/bin/bash
+set -euo pipefail
 
-# 2. Choose a threshold, e.g. top 0.5% or 0.1%
+###############################################
+# 0. INPUT FILES
+###############################################
+# LML.vcf                → your raw VCF
+# genes_from_gff3.bed    → BED file of gene coordinates
 
-# Example: top 0.5%
-N=$(wc -l < RAiSD_mu_values.txt)
-idx=$(printf "%.0f\n" "$(echo "$N*0.995" | bc -l)")
-mu_thr_0_5=$(awk -v i="$idx" 'NR==i {print $1}' RAiSD_mu_values.txt)
-echo "Top 0.5% μ threshold = $mu_thr_0_5"
+###############################################
+# 1. PREPARE VCF FOR RAiSD
+###############################################
 
-# Or: top 0.1%
-idx2=$(printf "%.0f\n" "$(echo "$N*0.999" | bc -l)")
-mu_thr_0_1=$(awk -v i="$idx2" 'NR==i {print $1}' RAiSD_mu_values.txt)
-echo "Top 0.1% μ threshold = $mu_thr_0_1"
+echo "Extracting SNPs and GT fields..."
+bcftools view -v snps LML.vcf | \
+  bcftools annotate -x INFO,^FORMAT/GT -Oz -o 3RAiSD_snps_GT.vcf.gz
 
-# 3. Filter intervals by chosen μ threshold (pick one)
-# Here I’ll use top 0.5% as an example:
-awk -v t="$mu_thr_0_5" '$4 >= t' RAiSD_intervals_raw.bed \
-  > RAiSD_intervals_top.bed
+echo "Indexing..."
+bcftools index -f 3RAiSD_snps_GT.vcf.gz
 
-# 4. Sort and merge only those high-μ intervals
-sort -k1,1 -k2,2n RAiSD_intervals_top.bed \
-  > RAiSD_intervals_top.sorted.bed
+echo "Converting to uncompressed VCF..."
+bcftools view 3RAiSD_snps_GT.vcf.gz -Ov -o 3RAiSD_input.raisd.vcf
 
-bedtools merge -i RAiSD_intervals_top.sorted.bed \
-  > RAiSD_sweep_regions.bed
+###############################################
+# 2. RUN RAiSD
+###############################################
 
-# 5. Intersect with genes again
+echo "Running RAiSD..."
+RAiSD -f -n 3RAiSD_run -I 3RAiSD_input.raisd.vcf -w 50 -P
+
+###############################################
+# 3. EXTRACT RAiSD INTERVALS
+###############################################
+
+echo "Extracting RAiSD intervals..."
+for f in RAiSD_Report.3RAiSD_run.chr*; do
+    chr=$(echo "$f" | sed 's/RAiSD_Report.3RAiSD_run.//')
+    awk -v c="$chr" 'BEGIN{OFS="\t"} NR>1 {print c, $2, $3, $7}' "$f"
+done > 3RAiSD_intervals_raw.bed
+
+sort -k1,1 -k2,2n 3RAiSD_intervals_raw.bed > 3RAiSD_intervals_sorted.bed
+
+###############################################
+# 4. COMPUTE μ THRESHOLDS (0.5% AND 0.1%)
+###############################################
+
+echo "Computing μ thresholds..."
+cut -f4 3RAiSD_intervals_raw.bed | sort -g > 3RAiSD_mu_values.txt
+N=$(wc -l < 3RAiSD_mu_values.txt)
+
+# Top 0.5%
+idx_05=$(printf "%.0f\n" "$(echo "$N*0.995" | bc -l)")
+mu_thr_05=$(awk -v i="$idx_05" 'NR==i {print $1}' 3RAiSD_mu_values.txt)
+echo "Top 0.5% μ threshold = $mu_thr_05"
+
+# Top 0.1%
+idx_01=$(printf "%.0f\n" "$(echo "$N*0.999" | bc -l)")
+mu_thr_01=$(awk -v i="$idx_01" 'NR==i {print $1}' 3RAiSD_mu_values.txt)
+echo "Top 0.1% μ threshold = $mu_thr_01"
+
+###############################################
+# 5. FILTER INTERVALS BY μ THRESHOLD
+###############################################
+
+echo "Filtering intervals..."
+awk -v t="$mu_thr_05" '$4 >= t' 3RAiSD_intervals_raw.bed \
+    > 3RAiSD_intervals_top05.bed
+
+awk -v t="$mu_thr_01" '$4 >= t' 3RAiSD_intervals_raw.bed \
+    > 3RAiSD_intervals_top01.bed
+
+###############################################
+# 6. MERGE HIGH-μ INTERVALS INTO SWEEP REGIONS
+###############################################
+
+echo "Merging intervals into sweep regions..."
+
+# 0.5%
+sort -k1,1 -k2,2n 3RAiSD_intervals_top05.bed \
+    > 3RAiSD_intervals_top05.sorted.bed
+
+bedtools merge -i 3RAiSD_intervals_top05.sorted.bed \
+    > 3RAiSD_sweep_regions05.bed
+
+# 0.1%
+sort -k1,1 -k2,2n 3RAiSD_intervals_top01.bed \
+    > 3RAiSD_intervals_top01.sorted.bed
+
+bedtools merge -i 3RAiSD_intervals_top01.sorted.bed \
+    > 3RAiSD_sweep_regions01.bed
+
+###############################################
+# 7. INTERSECT SWEEP REGIONS WITH GENES
+###############################################
+
+echo "Intersecting sweeps with genes..."
+
+# 0.5%
 bedtools intersect \
-  -a RAiSD_sweep_regions.bed \
-  -b genes_from_gff3.bed \
-  -wa -wb \
-  > RAiSD_sweep_gene_overlaps_filtered.txt
+    -a 3RAiSD_sweep_regions05.bed \
+    -b genes_from_gff3.bed \
+    -wa -wb \
+    > 3RAiSD_sweep_gene_overlaps05.txt
 
-cut -f7 RAiSD_sweep_gene_overlaps_filtered.txt | sort | uniq \
-  > RAiSD_sweep_genes_unique_filtered.txt
+cut -f7 3RAiSD_sweep_gene_overlaps05.txt | sort | uniq \
+    > 3RAiSD_sweep_genes_unique05.txt
 
-wc -l RAiSD_sweep_genes_unique_filtered.txt
+# 0.1%
+bedtools intersect \
+    -a 3RAiSD_sweep_regions01.bed \
+    -b genes_from_gff3.bed \
+    -wa -wb \
+    > 3RAiSD_sweep_gene_overlaps01.txt
 
+cut -f7 3RAiSD_sweep_gene_overlaps01.txt | sort | uniq \
+    > 3RAiSD_sweep_genes_unique01.txt
 
+###############################################
+# 8. REPORT RESULTS
+###############################################
 
+echo "Final gene counts:"
+echo -n "Top 0.5%: "
+wc -l 3RAiSD_sweep_genes_unique05.txt
 
+echo -n "Top 0.1%: "
+wc -l 3RAiSD_sweep_genes_unique01.txt
+
+echo "Done."
 
 
 
