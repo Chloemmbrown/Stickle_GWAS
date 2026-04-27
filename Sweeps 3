@@ -130,6 +130,70 @@ wc -l 3RAiSD_sweep_genes_unique01.txt
 
 echo "Done."
 
+###############################################
+# 9. OVERLAP: SWEEP GENE NAMES WITH GWAS GENE NAMES
+###############################################
+
+echo "Normalizing case and sorting gene name files..."
+
+# Lowercase + sort sweep gene names (0.1%)
+tr '[:upper:]' '[:lower:]' < 3RAiSD_sweep_genes_unique01.txt \
+    | sort \
+    > sweep01.names.sorted.txt
+
+# Lowercase + sort sweep gene names (0.5%)
+tr '[:upper:]' '[:lower:]' < 3RAiSD_sweep_genes_unique05.txt \
+    | sort \
+    > sweep05.names.sorted.txt
+
+# Lowercase + sort GWAS gene names
+tr '[:upper:]' '[:lower:]' < LML_GWAS_FDR_.056_gene_names.txt \
+    | sort \
+    > gwas.names.sorted.txt
+
+echo "Finding sweep–GWAS overlaps..."
+
+# Overlap: top 0.1% sweeps ∩ GWAS
+comm -12 sweep01.names.sorted.txt gwas.names.sorted.txt \
+    > overlap_GWAS_sweeps01_geneNames.txt
+
+# Overlap: top 0.5% sweeps ∩ GWAS
+comm -12 sweep05.names.sorted.txt gwas.names.sorted.txt \
+    > overlap_GWAS_sweeps05_geneNames.txt
+
+
+###############################################
+# 10. OVERLAP: SWEEP–GWAS GENES WITH PIGMENT GENES
+###############################################
+
+echo "Finding sweep–GWAS–pigment overlaps..."
+
+# Pigment gene list is already sorted + lowercase:
+# Pigments_McKinnon2022_sorted.txt
+
+# Overlap: top 0.1% sweeps ∩ GWAS ∩ pigment genes
+comm -12 overlap_GWAS_sweeps01_geneNames.txt \
+         Pigments_McKinnon2022_sorted.txt \
+    > overlap_GWAS_sweeps01_pigmentGenes.txt
+
+# Overlap: top 0.5% sweeps ∩ GWAS ∩ pigment genes
+comm -12 overlap_GWAS_sweeps05_geneNames.txt \
+         Pigments_McKinnon2022_sorted.txt \
+    > overlap_GWAS_sweeps05_pigmentGenes.txt
+
+
+###############################################
+# 11. REPORT OVERLAP RESULTS
+###############################################
+
+echo "Sweep–GWAS–Pigment Overlap Counts:"
+echo -n "Top 0.1% sweeps ∩ GWAS ∩ pigment genes: "
+wc -l overlap_GWAS_sweeps01_pigmentGenes.txt
+
+echo -n "Top 0.5% sweeps ∩ GWAS ∩ pigment genes: "
+wc -l overlap_GWAS_sweeps05_pigmentGenes.txt
+
+echo "All overlap analyses complete."
 
 
 
