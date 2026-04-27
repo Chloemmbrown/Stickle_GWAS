@@ -131,17 +131,91 @@ wc -l 3RAiSD_sweep_genes_unique01.txt
 echo "Done."
 
 ###############################################
-# 9. OVERLAP: SWEEP GENE NAMES WITH GWAS GENE NAMES
+# 9. MAP SWEEP GENE NAMES TO ENSEMBL IDs
 ###############################################
 
-echo "Normalizing case and sorting gene name files..."
+echo "Mapping sweep gene names to Ensembl IDs..."
 
-# Lowercase + sort sweep gene names (0.1%)
+# Create geneName → EnsemblID mapping file from GFF3
+awk -F '[;\t]' '
+    $3=="gene" {
+        id=""; name="";
+        for(i=1;i<=NF;i++){
+            if($i ~ /^ID=/)   { sub("ID=","",$i); id=$i }
+            if($i ~ /^Name=/) { sub("Name=","",$i); name=$i }
+        }
+        if(id!="" && name!="") print name"\t"id
+    }
+' stickleback.gff3 > geneName_to_ensemblID.txt
+
+# Sort mapping file
+sort -k1,1 geneName_to_ensemblID.txt > geneName_to_ensemblID.sorted.txt
+
+
+###############################################
+# 10. CONVERT SWEEP GENE NAMES → ENSEMBL IDs
+###############################################
+
+echo "Converting sweep gene names to Ensembl IDs..."
+
+# Top 0.1%
+sort 3RAiSD_sweep_genes_unique01.txt > sweep01.names.sorted.txt
+join -1 1 -2 1 sweep01.names.sorted.txt geneName_to_ensemblID.sorted.txt \
+    > 3RAiSD_sweep_genes_unique01_ensembl.txt
+
+# Top 0.5%
+sort 3RAiSD_sweep_genes_unique05.txt > sweep05.names.sorted.txt
+join -1 1 -2 1 sweep05.names.sorted.txt geneName_to_ensemblID.sorted.txt \
+    > 3RAiSD_sweep_genes_unique05_ensembl.txt
+
+
+###############################################
+# 11. EXTRACT ONLY ENSEMBL IDs
+###############################################
+
+echo "Extracting Ensembl IDs only..."
+
+# Convert space → tab, then cut column 2
+sed 's/ \+/\t/g' 3RAiSD_sweep_genes_unique01_ensembl.txt \
+    | cut -f2 \
+    > 3RAiSD_sweep_genes_unique01_onlyIDs.txt
+
+sed 's/ \+/\t/g' 3RAiSD_sweep_genes_unique05_ensembl.txt \
+    | cut -f2 \
+    > 3RAiSD_sweep_genes_unique05_onlyIDs.txt
+
+
+###############################################
+# 12. OVERLAP SWEEP ENSEMBL IDs WITH GWAS ENSEMBL IDs
+###############################################
+
+echo "Finding sweep–GWAS overlaps (Ensembl IDs)..."
+
+# Sort all ID files
+sort 3RAiSD_sweep_genes_unique01_onlyIDs.txt > sweep01.ids.sorted.txt
+sort 3RAiSD_sweep_genes_unique05_onlyIDs.txt > sweep05.ids.sorted.txt
+sort LML_GWAS_FDR_.056_ensembl_ids.txt > gwas.ids.sorted.txt
+
+# Overlap: top 0.1% sweeps ∩ GWAS
+comm -12 sweep01.ids.sorted.txt gwas.ids.sorted.txt \
+    > overlap_GWAS_sweeps01.txt
+
+# Overlap: top 0.5% sweeps ∩ GWAS
+comm -12 sweep05.ids.sorted.txt gwas.ids.sorted.txt \
+    > overlap_GWAS_sweeps05.txt
+
+
+###############################################
+# 13. OVERLAP USING GENE NAMES (SWEEP ∩ GWAS)
+###############################################
+
+echo "Finding sweep–GWAS overlaps (gene names)..."
+
+# Lowercase + sort sweep gene names
 tr '[:upper:]' '[:lower:]' < 3RAiSD_sweep_genes_unique01.txt \
     | sort \
     > sweep01.names.sorted.txt
 
-# Lowercase + sort sweep gene names (0.5%)
 tr '[:upper:]' '[:lower:]' < 3RAiSD_sweep_genes_unique05.txt \
     | sort \
     > sweep05.names.sorted.txt
@@ -150,8 +224,6 @@ tr '[:upper:]' '[:lower:]' < 3RAiSD_sweep_genes_unique05.txt \
 tr '[:upper:]' '[:lower:]' < LML_GWAS_FDR_.056_gene_names.txt \
     | sort \
     > gwas.names.sorted.txt
-
-echo "Finding sweep–GWAS overlaps..."
 
 # Overlap: top 0.1% sweeps ∩ GWAS
 comm -12 sweep01.names.sorted.txt gwas.names.sorted.txt \
@@ -163,27 +235,26 @@ comm -12 sweep05.names.sorted.txt gwas.names.sorted.txt \
 
 
 ###############################################
-# 10. OVERLAP: SWEEP–GWAS GENES WITH PIGMENT GENES
+# 14. OVERLAP WITH PIGMENT GENES
 ###############################################
 
 echo "Finding sweep–GWAS–pigment overlaps..."
 
-# Pigment gene list is already sorted + lowercase:
-# Pigments_McKinnon2022_sorted.txt
+# Pigment gene list is already sorted + lowercase
 
-# Overlap: top 0.1% sweeps ∩ GWAS ∩ pigment genes
+# Top 0.1%
 comm -12 overlap_GWAS_sweeps01_geneNames.txt \
          Pigments_McKinnon2022_sorted.txt \
     > overlap_GWAS_sweeps01_pigmentGenes.txt
 
-# Overlap: top 0.5% sweeps ∩ GWAS ∩ pigment genes
+# Top 0.5%
 comm -12 overlap_GWAS_sweeps05_geneNames.txt \
          Pigments_McKinnon2022_sorted.txt \
     > overlap_GWAS_sweeps05_pigmentGenes.txt
 
 
 ###############################################
-# 11. REPORT OVERLAP RESULTS
+# 15. REPORT OVERLAP RESULTS
 ###############################################
 
 echo "Sweep–GWAS–Pigment Overlap Counts:"
@@ -194,7 +265,6 @@ echo -n "Top 0.5% sweeps ∩ GWAS ∩ pigment genes: "
 wc -l overlap_GWAS_sweeps05_pigmentGenes.txt
 
 echo "All overlap analyses complete."
-
 
 
 
