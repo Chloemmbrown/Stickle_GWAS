@@ -227,9 +227,8 @@ comm -12 Pigments_McKinnon2022_sorted.txt GWAS_RAISD_overlap_sorted.txt > overla
 
 Relatedness 
 
-#create necessary PLINK binary files for GWAS
-plink --vcf step3_hwe_filtered.vcf.gz \
-  --make-bed --out final_plink_dataset
+plink2 --bfile LMLdataset --make-king --out LML_king_full --allow-extra-chr
+
 
 ##Now have final_plink_dataset
 #Quick QC
