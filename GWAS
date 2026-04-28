@@ -227,7 +227,7 @@ comm -12 Pigments_McKinnon2022_sorted.txt GWAS_RAISD_overlap_sorted.txt > overla
 
 Relatedness 
 
-plink2 --bfile LMLdataset --make-king --out LML_king_full --allow-extra-chr
+plink --bfile LMLdataset --genome --out LML_genome --allow-extra-chr
 
 
 ##Now have final_plink_dataset
