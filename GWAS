@@ -2,62 +2,40 @@
 #PLINK v1.90b6.21 64-bit (19 Oct 2020)          www.cog-genomics.org/plink/1.9/ 2005-2020 Shaun Purcell, Christopher Chang   GNU General Public License v3
 
 ##creating one large g.vcf.gz file
+#!/bin/bash # Define paths 
 
-for bam in *.bam; do
-    sample=$(basename "$bam" .bam)
-    gatk HaplotypeCaller \
-        -R stickleback.fasta \
-        -I "$bam" \
-        -O "${sample}.g.vcf.gz" \
-        -ERC GVCF
-Done
+REF="../../08_G_aculeateus_genome/Nath_etal_genome/stickleback_v5_assembly.fa" 
+BAM_DIR="../../04_bams_files" 
+OUT_DIR="../../07_vcf_files/chloe_vcfs"
 
-Step 2 : combine gvcfs
-gatk GenomicsDBImport \
-    $(for f in *.g.vcf.gz; do echo "--variant $f"; done) \
-    --genomicsdb-workspace-path my_database \
-    --reader-threads 4 \
-    -L intervals.list \
-    --sample-name-map sample_map.txt
+# Create output directory if it doesn't exist mkdir -p "$OUT_DIR"
+# Check if there are BAM files to process shopt -s nullglob
 
-Step 3 joint genotyping
-gatk GenotypeGVCFs \
-    -R stickleback.fasta \
-    -V gendb://my_database \
-    -O final_joint_genotyped.vcf.gz
+bam_files=("$BAM_DIR"/*_RG_sorted_fixmate_position_markdup.bam)
 
-
-or could be this???
-
-nano run_haplotypecaller.sh
-
-#!/bin/bash # Define paths REF="/mnt/d/04.1_bams_combined/04_bams_files/stickleback_v5_assembl.fasta" BAM_DIR="/mnt/d/04.1_bams_combined/04_bams_files" OUT_DIR="/mnt/d/04.1_bams_combined/04_bams_files/gvcfs"
- # Create output directory if it doesn't exist mkdir -p "$OUT_DIR"
- # Check if there are BAM files to process shopt -s nullglob 
-bam_files=("$BAM_DIR"/*_RG_sorted_fixmate_position_markdup.bam) 
-if [ ${#bam_files[@]} -eq 0 ]; then 
-echo "No BAM files matched in $BAM_DIR"
- exit 1 
+if [ ${#bam_files[@]} -eq 0 ]; then
+	echo "No BAM files matched in $BAM_DIR"
+	exit 1
 fi
- # Loop over each BAM file
- for bam in "${bam_files[@]}" do
- sample_id=$(basename "$bam" 
-_RG_sorted_fixmate_position_markdup.bam)
- echo "Processing $sample_id" 
-echo "Running HaplotypeCaller on $bam..." 
-gatk HaplotypeCaller \ 
--R "$REF" \
- -I "$bam" \ 
--O "$OUT_DIR/${sample_id}.g.vcf.gz" \
- -ERC GVCF
- echo "Finished $sample_id" 
-done
 
-chmod +x run_haplotypecaller.sh
+# Loop over each BAM file
+for bam in "$BAM_DIR"/*.bam; do
+	sample_id=$(basename $bam"_RG_sorted_fixmate_position_markdup.bam")
+	echo "Processing $sample_id"
+	echo "Running HaplotypeCaller on $bam..."
+	gatk HaplotypeCaller \
+		-R "$REF" \
+		-I "$bam" \
+		-O "$OUT_DIR/${sample_id}.g.vcf.gz" \
+		-ERC GVCF
+	echo "Finished $sample_id"
+    done
+
+
+###chmod +x run_haplotypecaller.sh ???questionable
 
 ./run_haplotypecaller.sh
 
-###Dr.Brewer helped with this step so we will have to find exact code
 
 #Large combined gvcf : sticklebacks_ALLGVCFS_gatkCombined.gvcf.gz
 #now convert gvcf into standard vcf:
