@@ -151,7 +151,7 @@ plink --bfile ANAandLMLdataset \
       --out gwas_ANAandLML
 
 
-#Code for GWAS_LML
+#Code for gwas_LML
 plink --bfile LMLdataset \
       --pheno LMLpheno.txt \
       --covar LMLdataset_pca.eigenvec \
@@ -160,6 +160,25 @@ plink --bfile LMLdataset \
       --allow-extra-chr \
       --allow-no-sex \
       --out gwas_LML
+
+#Code for gwas_LML_nocovar
+plink --bfile LMLdataset \
+      --pheno LMLpheno.txt \
+      --linear \
+      --allow-extra-chr \
+      --allow-no-sex \
+      --out gwas_LML_nocovar
+
+#code for gwas_LML_size
+ plink --bfile LMLdataset \
+      --pheno LMLpheno.txt \
+      --covar LMLdataset_covars.txt \
+      --covar-number 1-8 \
+      --linear \
+      --allow-extra-chr \
+      --allow-no-sex \
+      --out gwas_LML_size
+
 
 
 #***switch from 07_vcf_files/chloe_vcfs to plink_files
