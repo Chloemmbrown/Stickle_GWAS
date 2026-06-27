@@ -1,0 +1,42 @@
+
+vcftools --gzvcf LML.vcf.gz \
+  --weir-fst-pop FWpop.txt \
+  --weir-fst-pop ANApop.txt \
+  --fst-window-size 50000 \
+  --fst-window-step 10000 \
+  --out ANA_vs_FW_windowed
+
+vcftools --gzvcf LML.vcf.gz \
+  --weir-fst-pop WCpop.txt \
+  --weir-fst-pop NICpop.txt \
+  --fst-window-size 50000 \
+  --fst-window-step 10000 \
+  --out WC_vs_NIC_windowed
+
+vcftools --gzvcf LML.vcf.gz \
+  --weir-fst-pop SRpop.txt \
+  --weir-fst-pop NICpop.txt \
+  --fst-window-size 50000 \
+  --fst-window-step 10000 \
+  --out SR_vs_NIC_windowed
+
+vcftools --gzvcf LML.vcf.gz \
+  --weir-fst-pop SRpop.txt \
+  --weir-fst-pop WCpop.txt \
+  --fst-window-size 50000 \
+  --fst-window-step 10000 \
+  --out SR_vs_WC_windowed
+
+vcftools --gzvcf LML.vcf.gz \
+  --weir-fst-pop LCSpop.txt \
+  --weir-fst-pop NICpop.txt \
+  --fst-window-size 50000 \
+  --fst-window-step 10000 \
+  --out LCS_vs_NIC_windowed
+
+vcftools --gzvcf LML.vcf.gz \
+  --weir-fst-pop LCSpop.txt \
+  --weir-fst-pop WCpop.txt \
+  --fst-window-size 50000 \
+  --fst-window-step 10000 \
+  --out LCS_vs_WC_windowed
