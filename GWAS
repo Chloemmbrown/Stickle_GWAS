@@ -32,7 +32,7 @@ for bam in "$BAM_DIR"/*.bam; do
     done
 
 
-###chmod +x run_haplotypecaller.sh ???questionable
+###chmod +x run_haplotypecaller.sh 
 
 ./run_haplotypecaller.sh
 
@@ -51,77 +51,16 @@ N#ew file named: combined_allstickles.vcf.gz
 
 bcftools norm -m -any combined_allstickles.vcf.gz     -Oz -o out_bial_stickles.vcf.gz --threads 4 && bcftools index -t out_bial_stickles.vcf.gz --threads 4
 
-#QC out_bial_stickles.vcf.gz
-#Variant count:
-bcftools view -H out_bial_stickles.vcf.gz | wc -l
-#output 27,600,957       Original had 21,989,975  
+out_bial_stickles.vcf.gz
+
 
 #Missingness:
 bcftools +fill-tags out_bial_stickles.vcf.gz --threads 8 -Oz -o - -- -t AF,F_MISSING \
-  | bcftools view --threads 8 -i 'AF[0]>=0.05 && F_MISSING<=0.10' -Oz -o filtered__miss_stickles.vcf.gz
+  | bcftools view --threads 8 -i 'AF[0]>=0.05 && F_MISSING<=0.10' -Oz -o filtered_miss_stickles.vcf.gz
 # Create index (tabix) **do next
-bcftools index -t --threads 8 filt_miss_stickles.vcf.gz
+bcftools index -t --threads 8 filtered_miss_stickles.vcf.gz
 
-
-##****************filtered_miss_stickles.vcf.gz here.....may be linked to stickles_nomiss
-
-#QC summary filt_miss_stickles?
-#Lines   total/split/joined/realigned/skipped:   21989975/3881132/0/0/0
-#input VCF had ~21.99 million variant lines, and bcftools norm split ~3.88 million multiallelic records into separate biallelic ones.
-#Summary missingness: Variants: 8,582,212 Samples: 142 Mean MAF: 0.330253 Mean missingness: 0.019895
-
-#More QC... some redundant
-# Keep only biallelic SNPs
-bcftools view -m2 -M2 -v snps filtered_stickles.vcf.gz \
-  -Oz -o step1_biallelic_snps.vcf.gz --threads 4
-bcftools index -t step1_biallelic_snps.vcf.gz
-
-# Remove samples with >5% missing genotypes
-plink --vcf step1_biallelic_snps.vcf.gz --missing --out sample_missingness
-awk '$6 > 0.05 {print $1, $2}' sample_missingness.imiss > remove_samples.txt
-if [ -s remove_samples.txt ]; then
-  plink --vcf step1_biallelic_snps.vcf.gz \
-    --remove remove_samples.txt \
-    --recode vcf bgz --out step2_samples_filtered
-else
-  cp step1_biallelic_snps.vcf.gz step2_samples_filtered.vcf.gz
-  bcftools index -t step2_samples_filtered.vcf.gz
-fi
-
-# Remove variants failing Hardy-Weinberg equilibrium (HWE)
-plink --vcf step2_samples_filtered.vcf.gz --hardy --out hwe_check
-awk '$9 < 1e-6 {print $1, $2}' hwe_check.hwe > remove_hwe.txt
-if [ -s remove_hwe.txt ]; then
-  plink --vcf step2_samples_filtered.vcf.gz \
-    --exclude remove_hwe.txt \
-    --recode vcf bgz --out step3_hwe_filtered
-else
-  cp step2_samples_filtered.vcf.gz step3_hwe_filtered.vcf.gz
-  bcftools index -t step3_hwe_filtered.vcf.gz
-fi
-
-# Create final PLINK binary files for GWAS
-plink --vcf step3_hwe_filtered.vcf.gz \
-  --make-bed --out final_plink_dataset
-
-**gapping here
-#Samples that have been removed S143 S46 S48 S50 S53: These samples have a higher than 5% missing genotypes 
-
-
-bcftools view -e 'F_MISSING > 0' step3_hwe_filtered.vcf.gz -Oz -o less_stickles_nomiss.vcf.gz
-#*****or leaning towards is being filtered__miss_stickles
-bcftools view -e 'F_MISSING > 0' filtered__miss_stickles.vcf.gz -Oz -o less_stickles_nomiss.vcf.gz
-
-#I think i used step3_hwe_filtered.vcf.gz and removed samples_to_remove.txt to get less_stickles_no_miss.vcf.gz
-#will have to recreate this file to see if get same result. doesnt make sense exactly but keep looking.... try to find in notes where less_stickles_nomiss is.... retrace again
-
-#Now ready to continue with less_stickles_nomiss.vcf.gz for GWAS analyses less_stickles_nomiss.vcf.gz
-
-
-
-
-
-
+bcftools view -e 'F_MISSING > 0' filtered_miss_stickles.vcf.gz -Oz -o less_stickles_nomiss.vcf.gz
 
 bcftools view -S ^ANAandLMLremove.txt less_stickles_nomiss.vcf.gz -Oz -o ANAandLML.vcf.gz --force-samples
 #same as above but LMLremove.txt
@@ -219,7 +158,6 @@ sed 's/\r$//' GWAS_RAISD_overlap_sorted.txt | sed 's/^[ \t]*//;s/[ \t]*$//' | tr
 mv cleanedGR.txt GWAS_RAISD_overlap_sorted.txt
 
 comm -12 Pigments_McKinnon2022_sorted.txt GWAS_RAISD_overlap_sorted.txt > overlapping_Pigments_GWAS_RAiSD.txt
-
 
 
 Relatedness 
